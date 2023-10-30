@@ -1,22 +1,3 @@
-<#
-    .SYNOPSIS
-    A PowerShell script to display basic system information in a graphical user interface (GUI).
-
-    .DESCRIPTION
-    This GUI-based PowerShell script displays:
-    1. Operating System (OS) information.
-    2. Network configuration and status.
-    3. Storage details, including S.M.A.R.T. health status for drives.
-    
-    The interface presents information in a grid layout and provides options to save the gathered information as an HTML file or fetch S.M.A.R.T. details for storage devices. Additionally, there's an option to open the Event Viewer directly from the interface.
-
-    .AUTHOR
-    Eric Thorup
-
-    .COPYRIGHT
-    Copyright (c) 2023 TEK Utah LLC. All rights reserved.
-#>
-
 # System information
 # This script will display a form that has basic system information laid out in a grid form.
 
