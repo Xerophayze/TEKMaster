@@ -1,23 +1,18 @@
-<#
-    .SYNOPSIS
-    A PowerShell script interface to run PowerShell scripts, install software, and access web shortcuts and access to a system info script.
-
-    .DESCRIPTION
-    This GUI-based PowerShell tool allows users to:
-    1. Run PowerShell scripts with optional command line arguments.
-    2. Install software by executing .exe or .msi files  with optional command line arguments.
-    3. Access web shortcuts by opening .url files.
-    The interface supports drag-and-drop functionality, and items can be executed with or without administrative privileges.
-
-    .AUTHOR
-    Eric Thorup
-
-    .COPYRIGHT
-    Copyright (c) 2023 TEK Utah LLC. All rights reserved.
-#>
-
 # Get the current script or exe's directory
-$currentDir = Split-Path -Parent -Path $MyInvocation.MyCommand.Definition
+$currentDir =   if ($PSScriptRoot) { # running as .ps1 script
+    $PSScriptRoot 
+  } else { # running as .exe 
+    Split-Path -Parent (Convert-Path -LiteralPath ([System.Environment]::GetCommandLineArgs()[0]))
+  }
+
+# Ensure required subdirectories exist
+$requiredSubDirs = @('WebShortcuts', 'Scripts', 'Software', 'FormTools')
+foreach ($dir in $requiredSubDirs) {
+    $fullDirPath = Join-Path -Path $currentDir -ChildPath $dir
+    if (-not (Test-Path $fullDirPath)) {
+        New-Item -Path $fullDirPath -ItemType Directory | Out-Null
+    }
+}
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -364,6 +359,95 @@ $runButton.Add_Click({
 
 $form.Controls.Add($runButton) | Out-Null
 
+function Create-URLShortcut {
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$URL,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$ShortcutName,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$Destination
+    )
+    
+    $WshShell = New-Object -ComObject WScript.Shell
+    $Shortcut = $WshShell.CreateShortcut("$Destination\$ShortcutName.url")
+    $Shortcut.TargetPath = $URL
+    $Shortcut.Save()
+}
+
+
+function Get-UserInput {
+    param (
+        [string]$title = "Enter details",
+        [string]$prompt1 = "Enter the URL:",
+        [string]$prompt2 = "Enter the name for the shortcut:"
+    )
+
+    Add-Type -AssemblyName System.Windows.Forms
+
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = $title
+    $form.Size = New-Object System.Drawing.Size(300,250) # Adjusted height
+    $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+	$form.Add_Activated({
+    $form.TopMost = $true
+})
+
+    $label1 = New-Object System.Windows.Forms.Label
+    $label1.Location = New-Object System.Drawing.Point(10,20)
+    $label1.Size = New-Object System.Drawing.Size(280,20)
+    $label1.Text = $prompt1
+    $form.Controls.Add($label1)
+
+    $textBox1 = New-Object System.Windows.Forms.TextBox
+    $textBox1.Location = New-Object System.Drawing.Point(10,40)
+    $textBox1.Size = New-Object System.Drawing.Size(260,20)
+    $form.Controls.Add($textBox1)
+
+    $label2 = New-Object System.Windows.Forms.Label
+    $label2.Location = New-Object System.Drawing.Point(10,70)
+    $label2.Size = New-Object System.Drawing.Size(280,20)
+    $label2.Text = $prompt2
+    $form.Controls.Add($label2)
+
+    $textBox2 = New-Object System.Windows.Forms.TextBox
+    $textBox2.Location = New-Object System.Drawing.Point(10,90)
+    $textBox2.Size = New-Object System.Drawing.Size(260,20)
+    $form.Controls.Add($textBox2)
+
+	$OKButton = New-Object System.Windows.Forms.Button
+    $OKButton.Location = New-Object System.Drawing.Point(50,180) # Adjusted location
+    $OKButton.Size = New-Object System.Drawing.Size(75,23)
+    $OKButton.Text = "OK"
+    $OKButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $form.Controls.Add($OKButton)
+	$OKButton.Add_Click({
+    $url = $textBox1.Text
+    $name = $textBox2.Text
+    $webShortcutPath = Join-Path -Path $currentDir -ChildPath 'WebShortcuts'
+    Create-URLShortcut -URL $url -ShortcutName $name -Destination $webShortcutPath
+	RefreshWebShortcutsList
+    $form.Close()
+})
+
+    $form.AcceptButton = $OKButton
+	
+	# Create the cancel button
+	$cancelButton = New-Object System.Windows.Forms.Button
+	$cancelButton.Location = New-Object System.Drawing.Point(175, 180) # Adjusted location
+	$cancelButton.Size = New-Object System.Drawing.Size(75,23)       # Adjusted size to match OK button
+	$cancelButton.Text = "Cancel"
+	$cancelButton.Anchor = [System.Windows.Forms.AnchorStyles]::Right -bor [System.Windows.Forms.AnchorStyles]::Bottom
+	$cancelButton.Add_Click({
+		$form.Close()
+	})
+	$form.Controls.Add($cancelButton) | Out-Null
+
+    $result = $form.ShowDialog()
+}
+
 # Create MenuStrip and add to form
 $menuStrip = New-Object System.Windows.Forms.MenuStrip
 $form.MainMenuStrip = $menuStrip
@@ -661,24 +745,27 @@ $newShortcutMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
 $newShortcutMenuItem.Text = "New"
 $newShortcutMenuItem.Add_Click({
     # Code to prompt user for URL and name
-    $urlPrompt = [System.Windows.Forms.MessageBox]::Show("Enter the URL:", "New Web Shortcut", [System.Windows.Forms.MessageBoxButtons]::OKCancel)
-    if ($urlPrompt -eq "OK") {
-        $namePrompt = [System.Windows.Forms.MessageBox]::Show("Enter the name for the shortcut:", "New Web Shortcut", [System.Windows.Forms.MessageBoxButtons]::OKCancel)
-        if ($namePrompt -eq "OK") {
-            # Create a new .url file with the provided URL and name
-            $shortcutContent = @"
+    $url, $name = Get-UserInput -title "New Web Shortcut" -prompt1 "Enter the URL:" -prompt2 "Enter the name for the shortcut:"
+    
+    # Only proceed if both URL and name have values
+    if ($url -and $name) {
+        # Create a new .url file with the provided URL and name
+        $shortcutContent = @"
 [InternetShortcut]
-URL=$urlPrompt
+URL=$url
 "@
-            $shortcutPath = Join-Path $webShortcutsPath "$namePrompt.url"
-            $shortcutContent | Out-File $shortcutPath
-            # Refresh the WebShortcuts list
-            RefreshWebShortcutsList
-        }
+        # Construct the full path for the new .url file
+        $shortcutPath = Join-Path $webShortcutsPath "$name.url"
+        
+        # Write the content to the file
+        $shortcutContent | Out-File $shortcutPath
+        
+        # Refresh the WebShortcuts list (assuming this function refreshes your UI list of shortcuts)
+        RefreshWebShortcutsList
     }
 })
-$webShortcutContextMenu.Items.Add($newShortcutMenuItem) | Out-Null
 
+$webShortcutContextMenu.Items.Add($newShortcutMenuItem) | Out-Null
 
 $webShortcutsListBox.ContextMenuStrip = $webShortcutContextMenu
 
@@ -716,7 +803,7 @@ AdjustControlPositions
 
 # Minimize the PowerShell console window
 $consoleWindowHandle = [ConsoleWindow]::GetConsoleWindow()
-[ConsoleWindow]::ShowWindow($consoleWindowHandle, 2)  # 2 is for SW_MINIMIZE
+[ConsoleWindow]::ShowWindow($consoleWindowHandle, 2) | Out-Null  # 2 is for SW_MINIMIZE
 
 # Show the form
 $form.ShowDialog() | Out-Null
