@@ -1,26 +1,3 @@
-# Title: Network Tools
-
-<#
-    .SYNOPSIS
-    A GUI-based Network Diagnostic Tool for pinging, tracing routes, and performing NSLookup operations.
-
-    .DESCRIPTION
-    This PowerShell tool offers a user-friendly interface to:
-    1. Ping IP addresses or domains with configurable count and timeout.
-    2. Trace the route to a destination with an optional setting to not resolve addresses.
-    3. Perform NSLookup operations on IP addresses or domains.
-    4. Display network adapter details and public IP.
-    5. Perform DNS cache flush.
-    6. Save results to a text file.
-    The tool also provides interactive feedback and adjusts its interface based on user choices.
-
-    .AUTHOR
-    Eric Thorup
-
-    .COPYRIGHT
-    Copyright (c) 2023 TEK Utah LLC. All rights reserved.
-#>
-
 [void] [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms")
 Add-Type -AssemblyName System.Drawing
 
