@@ -12,3 +12,5 @@ Dive into the world of TEK Master, a versatile GUI-based PowerShell tool crafted
 🔒 Admin Privileges: Opt to run items with or without administrative rights to suit your requirements.
 Discover the power and flexibility of PowerShell through the lens of TEK Master!
 
+Make sure you check out my other tools:
+TEK System Info powershell script: https://github.com/Xerophayze/TEKSystemInfo
