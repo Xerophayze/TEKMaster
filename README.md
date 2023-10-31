@@ -15,6 +15,9 @@ Discover the power and flexibility of PowerShell through the lens of TEK Master!
 Make sure you check out my other tools:
 TEK System Info powershell script: https://github.com/Xerophayze/TEKSystemInfo
 
+Usage/Installation
+This is a very simple Powershell script to run. Put it in a folder, right click and run with Powershell. It'll create a series of folders, and you'll get a nice clean interface where you can start dragging and dropping other Powershell scripts, software installers or web shortcuts into the interface. Watch the video above to get a more in-depth view of how to use it.
+
 **Disclaimer:**
 
 ---
